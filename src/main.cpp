@@ -5,6 +5,23 @@
 #include <net.h>
 #include "NanoDetPlus.h"
 
+std::chrono::steady_clock::time_point speakBegin, speakEnd;
+int speaking = 0;
+
+void speak(std::string text){
+    speakEnd = std::chrono::steady_clock::now();
+    if( speaking == 0 ){
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(speakEnd - speakBegin);
+        if( duration.count() > 0 ){
+        speaking = 1;
+        speakBegin = speakEnd;
+        std::string command = "espeak \""+text+"\" &";
+        const char* cmd = command.c_str();
+        system(cmd);
+        speaking = 0;
+        }
+    }
+}
 
 static const char* class_names[] = {
     "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
@@ -85,6 +102,39 @@ int resize_uniform(cv::Mat& src, cv::Mat& dst, cv::Size dst_size, object_rect& e
     }
     return 0;
 }
+void speakPriority(const cv::Mat& image,const std::vector<BoxInfo>& bboxes, object_rect& effect_roi){
+    int src_w = image.cols;
+    int dst_w = effect_roi.width;
+    float width_ratio = (float)src_w / (float)dst_w;
+
+    std::vector<std::pair<float,int>> weights;
+    float w_location = 0.8;
+    float w_prediction = 0.3;
+
+    float v_loc = 0;
+    for (size_t i = 0; i < bboxes.size(); i++){
+        const BoxInfo& bbox = bboxes[i];
+        float d1,d2,d3;
+        auto x1 = (bbox.x1 - effect_roi.x) * width_ratio;
+        auto x2 = (bbox.x2 - effect_roi.x) * width_ratio;
+        d1 = x1;
+        d2 = x2 - x1;
+        d3 = dst_w - x2;
+        if( std::abs(d3-d1) > 0.01){
+            v_loc = 1.00;
+        } else {
+            v_loc = d2 / std::abs(d3-d1) > 1 ? 1.00 : d2/std::abs(d3-d1);
+        }
+        float wt = w_location * v_loc + w_prediction * bbox.score;
+        weights.push_back(std::make_pair(wt,bbox.label));
+    }
+    std::sort(weights.begin(), weights.end(), [](const auto& l, const auto& r){
+        return (l.first == r.first) ? l.second > r.second : l.first < r.first;
+    });
+    if( weights.size() > 0 ){
+        speak(class_names[weights.back().second]);
+    }
+}
 void draw_bboxes(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, object_rect effect_roi)
 {
     int src_w = image.cols;
@@ -93,6 +143,7 @@ void draw_bboxes(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, objec
     int dst_h = effect_roi.height;
     float width_ratio = (float)src_w / (float)dst_w;
     float height_ratio = (float)src_h / (float)dst_h;
+    speakPriority(image,bboxes,effect_roi);
 
     for (size_t i = 0; i < bboxes.size(); i++){
         const BoxInfo& bbox = bboxes[i];
