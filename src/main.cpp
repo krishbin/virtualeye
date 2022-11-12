@@ -4,15 +4,16 @@
 #include <iostream>
 #include <net.h>
 #include "NanoDetPlus.h"
+#include <unistd.h>
 
-std::chrono::steady_clock::time_point speakBegin, speakEnd;
+std::chrono::high_resolution_clock::time_point speakBegin, speakEnd;
 int speaking = 0;
 
 void speak(std::string text){
-    speakEnd = std::chrono::steady_clock::now();
+    speakEnd = std::chrono::high_resolution_clock::now();
     if( speaking == 0 ){
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(speakEnd - speakBegin);
-        if( duration.count() > 0 ){
+        if( duration.count() > 1 ){
         speaking = 1;
         speakBegin = speakEnd;
         std::string command = "espeak \""+text+"\" &";
@@ -24,14 +25,14 @@ void speak(std::string text){
 }
 
 static const char* class_names[] = {
-    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+    "person", "bicycle", "car", "motorcycle", "fan", "bus", "train", "truck", "boat", "traffic light",
     "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
     "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
     "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
     "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-    "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
-    "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
+    "potted plant", "bed", "table", "table", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
+    "microwave", "oven", "toaster", "sink", "table", "book", "clock", "vase", "scissors", "teddy bear",
     "hair drier", "toothbrush"
 };
 
@@ -104,35 +105,75 @@ int resize_uniform(cv::Mat& src, cv::Mat& dst, cv::Size dst_size, object_rect& e
 }
 void speakPriority(const cv::Mat& image,const std::vector<BoxInfo>& bboxes, object_rect& effect_roi){
     int src_w = image.cols;
+    int src_h = image.rows;
     int dst_w = effect_roi.width;
+    int dst_h = effect_roi.height;
+    int c_dst_w = dst_w/2;
+    int c_dst_h = dst_h/2;
     float width_ratio = (float)src_w / (float)dst_w;
+    float height_ratio = (float)src_h / (float)dst_h;
 
     std::vector<std::pair<float,int>> weights;
-    float w_location = 0.8;
-    float w_prediction = 0.3;
+    std::vector<std::pair<float,std::string>> location_x;
+    std::vector<std::pair<float,std::string>> location_y;
 
+    float w_location = 0.8;
+    float w_prediction = 0.5;
+    float w_depth = 0.1;
+    int h_val_cond;
+    int w_val_cond;
     float v_loc = 0;
     for (size_t i = 0; i < bboxes.size(); i++){
+        float v_loc = 0, v_depth=0;
         const BoxInfo& bbox = bboxes[i];
         float d1,d2,d3;
         auto x1 = (bbox.x1 - effect_roi.x) * width_ratio;
         auto x2 = (bbox.x2 - effect_roi.x) * width_ratio;
+        auto y1 = (bbox.y1 - effect_roi.y) * height_ratio;
+        auto y2 = (bbox.y2 - effect_roi.y) * height_ratio;
+        int c_box_w = x1 + (x2-x1) / 2;
+        int c_box_h = y1 + (y2-y1) / 2;
         d1 = x1;
         d2 = x2 - x1;
         d3 = dst_w - x2;
+        v_depth = d2/dst_w;
+        float wt = w_depth * v_depth + w_location * v_loc + w_prediction * bbox.score;
         if( std::abs(d3-d1) > 0.01){
             v_loc = 1.00;
         } else {
             v_loc = d2 / std::abs(d3-d1) > 1 ? 1.00 : d2/std::abs(d3-d1);
         }
-        float wt = w_location * v_loc + w_prediction * bbox.score;
+	h_val_cond = c_box_h - c_dst_h - 56;
+	w_val_cond = c_box_w - c_dst_w - 101;
+        if( h_val_cond < 0 ){
+            location_y.push_back(std::make_pair(wt,"t"));
+        } else {
+            location_y.push_back(std::make_pair(wt,"b"));
+        }
+        if( w_val_cond > 0 ){
+            location_x.push_back(std::make_pair(wt,"r"));
+        } else {
+            location_x.push_back(std::make_pair(wt,"l"));
+        }
         weights.push_back(std::make_pair(wt,bbox.label));
     }
     std::sort(weights.begin(), weights.end(), [](const auto& l, const auto& r){
         return (l.first == r.first) ? l.second > r.second : l.first < r.first;
     });
+    std::sort(location_x.begin(), location_x.end(), [](const auto& l, const auto& r){
+        return (l.first == r.first) ? l.second > r.second : l.first < r.first;
+    });
+    std::sort(location_y.begin(), location_y.end(), [](const auto& l, const auto& r){
+        return (l.first == r.first) ? l.second > r.second : l.first < r.first;
+    });
     if( weights.size() > 0 ){
-        speak(class_names[weights.back().second]);
+	    if( std::abs(h_val_cond) < 50 && std::abs(w_val_cond) < 50)
+	    {
+		std::string cnt= "c ";
+        	speak( cnt + class_names[weights.back().second]);
+	    }
+	    else
+        	speak(location_x.back().second + location_y.back().second + " " + class_names[weights.back().second]);
     }
 }
 void draw_bboxes(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, object_rect effect_roi)
@@ -176,8 +217,8 @@ int main(int argc, char** argv)
     float FPS[16];
     int i,Fcnt=0;
     cv::Mat frame;
-    speakBegin = std::chrono::steady_clock::now();
-    std::chrono::steady_clock::time_point Tbegin, Tend;
+    speakBegin = std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point Tbegin, Tend;
 
     for(i=0;i<16;i++) FPS[i]=0.0;
 
@@ -197,7 +238,7 @@ int main(int argc, char** argv)
             break;
         }
 
-        Tbegin = std::chrono::steady_clock::now();
+        Tbegin = std::chrono::high_resolution_clock::now();
 
         object_rect effect_roi;
         cv::Mat resized_img;
@@ -205,7 +246,7 @@ int main(int argc, char** argv)
         auto results = nanodet.detect(resized_img, 0.4, 0.5);
         draw_bboxes(frame, results, effect_roi);
 
-        Tend = std::chrono::steady_clock::now();
+        Tend = std::chrono::high_resolution_clock::now();
 
         f = std::chrono::duration_cast <std::chrono::milliseconds> (Tend - Tbegin).count();
         if(f>0.0) FPS[((Fcnt++)&0x0F)]=1000.0/f;
