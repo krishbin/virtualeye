@@ -6,14 +6,16 @@
 #include "NanoDetPlus.h"
 #include <unistd.h>
 
+#define DEBUG
+
 std::chrono::high_resolution_clock::time_point speakBegin, speakEnd;
 int speaking = 0;
 
-void speak(std::string text){
+void speak(std::string text, bool bypasstime=false){
     speakEnd = std::chrono::high_resolution_clock::now();
     if( speaking == 0 ){
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(speakEnd - speakBegin);
-        if( duration.count() > 1 ){
+        if( (duration.count() > 1 || bypasstime) ){
         speaking = 1;
         speakBegin = speakEnd;
         std::string command = "espeak \""+text+"\" &";
@@ -49,7 +51,6 @@ int resize_uniform(cv::Mat& src, cv::Mat& dst, cv::Size dst_size, object_rect& e
     int h = src.rows;
     int dst_w = dst_size.width;
     int dst_h = dst_size.height;
-    //std::cout << "src: (" << h << ", " << w << ")" << std::endl;
     dst = cv::Mat(cv::Size(dst_w, dst_h), CV_8UC3, cv::Scalar(0));
 
     float ratio_src = w * 1.0 / h;
@@ -74,13 +75,11 @@ int resize_uniform(cv::Mat& src, cv::Mat& dst, cv::Size dst_size, object_rect& e
         return 0;
     }
 
-    //std::cout << "tmp: (" << tmp_h << ", " << tmp_w << ")" << std::endl;
     cv::Mat tmp;
     cv::resize(src, tmp, cv::Size(tmp_w, tmp_h));
 
     if (tmp_w != dst_w) {
         int index_w = floor((dst_w - tmp_w) / 2.0);
-        //std::cout << "index_w: " << index_w << std::endl;
         for (int i = 0; i < dst_h; i++) {
             memcpy(dst.data + i * dst_w * 3 + index_w * 3, tmp.data + i * tmp_w * 3, tmp_w * 3);
         }
@@ -91,7 +90,6 @@ int resize_uniform(cv::Mat& src, cv::Mat& dst, cv::Size dst_size, object_rect& e
     }
     else if (tmp_h != dst_h) {
         int index_h = floor((dst_h - tmp_h) / 2.0);
-        //std::cout << "index_h: " << index_h << std::endl;
         memcpy(dst.data + index_h * dst_w * 3, tmp.data, tmp_w * tmp_h * 3);
         effect_area.x = 0;
         effect_area.y = index_h;
@@ -118,7 +116,7 @@ void speakPriority(const cv::Mat& image,const std::vector<BoxInfo>& bboxes, obje
     std::vector<std::pair<float,std::string>> location_y;
 
     float w_location = 0.8;
-    float w_prediction = 0.5;
+    float w_prediction = 0.8;
     float w_depth = 0.1;
     int h_val_cond;
     int w_val_cond;
@@ -126,6 +124,7 @@ void speakPriority(const cv::Mat& image,const std::vector<BoxInfo>& bboxes, obje
     for (size_t i = 0; i < bboxes.size(); i++){
         float v_loc = 0, v_depth=0;
         const BoxInfo& bbox = bboxes[i];
+	if( bbox.score < 0.5 ) continue;
         float d1,d2,d3;
         auto x1 = (bbox.x1 - effect_roi.x) * width_ratio;
         auto x2 = (bbox.x2 - effect_roi.x) * width_ratio;
@@ -176,6 +175,7 @@ void speakPriority(const cv::Mat& image,const std::vector<BoxInfo>& bboxes, obje
         	speak(location_x.back().second + location_y.back().second + " " + class_names[weights.back().second]);
     }
 }
+
 void draw_bboxes(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, object_rect effect_roi)
 {
     int src_w = image.cols;
@@ -209,36 +209,76 @@ void draw_bboxes(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, objec
     }
 }
 
+int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, object_rect effect_roi){
+    bool spokeInitialItem = false;
+    if(bboxes.size() == 0) return 0;
+    auto currentitem = bboxes.begin();
+    for(auto it=bboxes.begin();it<bboxes.end(); it++){
+        std::cout<<it->label<<" ";
+        std::cout<<class_names[it->label]<<std::endl;
+    }
+    while (true){
+        char keyPress = cv::waitKey(500);
+        if(keyPress == 'd') break;
+        if(keyPress == 'n'){
+            if(!spokeInitialItem){
+                spokeInitialItem = true;
+                std::cout<<currentitem->label<<std::endl;
+                speak(class_names[currentitem->label],true);
+            }else if (currentitem != bboxes.end()){
+                currentitem++;
+                std::cout<<currentitem->label<<std::endl;
+                speak(class_names[currentitem->label],true);
+            } else {
+                speak("end");
+            }
+        }
+        if(keyPress == 'p'){
+            if(currentitem != bboxes.begin()){
+                currentitem--;
+                std::cout<<currentitem->label<<std::endl;
+                speak(class_names[currentitem->label],true);
+            } else {
+                speak("start");
+            }
+        }
+    }
+    return 0;
+}
+
 const int ModelSize = 416;
 
 int main(int argc, char** argv)
 {
-    float f;
-    float FPS[16];
-    int i,Fcnt=0;
-    cv::Mat frame;
-    speakBegin = std::chrono::high_resolution_clock::now();
-    std::chrono::high_resolution_clock::time_point Tbegin, Tend;
+	float f;
+	int i,Fcnt=0;
+#ifdef DEBUG
+	float FPS[16];
+	for(i=0;i<16;i++) FPS[i]=0.0;
+#endif
+	cv::Mat frame;
+	speakBegin = std::chrono::high_resolution_clock::now();
+	std::chrono::high_resolution_clock::time_point Tbegin, Tend;
 
-    for(i=0;i<16;i++) FPS[i]=0.0;
+	NanoDet nanodet = NanoDet("nanodet-plus-m_416.param", "nanodet-plus-m_416.bin", ModelSize);
 
-    NanoDet nanodet = NanoDet("nanodet-plus-m_416.param", "nanodet-plus-m_416.bin", ModelSize);
-
-  cv::VideoCapture cap(0);   //Movie
-  if (!cap.isOpened()) {
-        std::cerr << "ERROR: Unable to open the camera" << std::endl;
-       return 0;
-           }
-    std::cout << "Start grabbing, press ESC on TLive window to terminate" << std::endl;
-
-    while(1){
-        cap >> frame;
-        if (frame.empty()) {
-            std::cerr << "End of movie" << std::endl;
-            break;
+  	cv::VideoCapture cap(0);
+  	if (!cap.isOpened()) {
+       		std::cerr << "ERROR: Unable to open the camera" << std::endl;
+       		return 0;
         }
+std::cout << "Firing Up the view" << std::endl;
+
+	while(1){
+	cap >> frame;
+#ifdef DEBUG
+	if (frame.empty()) {
+	    std::cerr << "End of view" << std::endl;
+	    break;
+	}
 
         Tbegin = std::chrono::high_resolution_clock::now();
+#endif
 
         object_rect effect_roi;
         cv::Mat resized_img;
@@ -246,16 +286,20 @@ int main(int argc, char** argv)
         auto results = nanodet.detect(resized_img, 0.4, 0.5);
         draw_bboxes(frame, results, effect_roi);
 
+#ifdef DEBUG
         Tend = std::chrono::high_resolution_clock::now();
 
         f = std::chrono::duration_cast <std::chrono::milliseconds> (Tend - Tbegin).count();
         if(f>0.0) FPS[((Fcnt++)&0x0F)]=1000.0/f;
         for(f=0.0, i=0;i<16;i++){ f+=FPS[i]; }
-        cv::putText(frame, cv::format("FPS %0.2f", f/16),cv::Point(10,20),cv::FONT_HERSHEY_SIMPLEX,0.6, cv::Scalar(0, 0, 255));
-
-        cv::imshow("NanoDetFrame",frame);
-        char esc = cv::waitKey(5);
-        if(esc == 27) break;
+	cv::putText(frame, cv::format("FPS %0.2f", f/16),cv::Point(10,20),cv::FONT_HERSHEY_SIMPLEX,0.6, cv::Scalar(0, 0, 255));
+#endif
+        cv::imshow("Drishya",frame);
+        char keyPress = cv::waitKey(1);
+        if(keyPress == 27) break;
+        else if(keyPress == 'd'){
+           traverse_objects(frame,results, effect_roi); 
+        }
     }
 
     return 0;
