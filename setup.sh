@@ -40,4 +40,4 @@ cd $rootDir
 mkdir build
 cd build
 cmake ..
-make `nproc`
+make -j`nproc`
