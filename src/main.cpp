@@ -33,7 +33,7 @@ static const char* class_names[] = {
     "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
     "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-    "potted plant", "bed", "table", "table", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
+    "potted plant", "bed", "table", "table", "heater", "heater", "mouse", "remote", "keyboard", "cell phone",
     "microwave", "oven", "toaster", "sink", "table", "book", "clock", "vase", "scissors", "teddy bear",
     "hair drier", "toothbrush"
 };
@@ -210,6 +210,8 @@ void draw_bboxes(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, objec
 }
 
 int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, object_rect effect_roi){
+	std::cout<<"Pause"<<std::endl;
+	speak("Pause");
     bool spokeInitialItem = false;
     if(bboxes.size() == 0) return 0;
     auto currentitem = bboxes.begin();
@@ -233,6 +235,12 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
                 speak("end");
             }
         }
+        if(keyPress == 'o'){
+		std::cout<<"Switching heater off"<<std::endl;
+		speak("Switching heater off");
+		std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/toggle.py");
+	}
+
         if(keyPress == 'p'){
             if(currentitem != bboxes.begin()){
                 currentitem--;
@@ -243,6 +251,8 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
             }
         }
     }
+	std::cout<<"Continue"<<std::endl;
+	speak("Continue");
     return 0;
 }
 
