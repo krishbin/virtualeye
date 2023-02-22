@@ -1,0 +1,168 @@
+#!/bin/bash
+rootDir=$(pwd)
+ncnnDir="$(pwd)/ncnn"
+ncnnVersion='20221128'
+
+#---------------------------
+# installing required packages
+#---------------------------
+function pullDependencies() {
+    cd $rootDir
+    git submodule update --init
+}
+function installPackage() {
+    if [ -f /etc/debian_version ]; then
+        sudo apt update
+        sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev libopencv-dev espeak
+    elif [ -f /etc/redhat-release ]; then
+        sudo yum install epel-release
+        sudo yum install git cmake protobuf-devel protobuf-compiler opencv-devel espeak
+    elif [ -f /etc/arch-release ]; then
+        sudo pacman -S git cmake protobuf opencv espeak
+    elif [ -f /etc/gentoo-release ]; then
+        sudo emerge -av dev-vcs/git cmake dev-libs/protobuf dev-libs/opencv espeak
+    fi
+}
+
+#---------------------------
+# building ncnn
+#---------------------------
+function buildNcnn() {
+    cd $ncnnDir
+    git submodule update --init
+    git checkout $ncnnVersion
+    cd $rootDir
+    mkdir $ncnnDir/build
+    cd $ncnnDir/build
+    cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=OFF ..
+    make -j`nproc`
+    make install
+}
+
+#---------------------------
+# building drishya
+#---------------------------
+function buildDrishya() {
+    cd $rootDir
+    # check if build folder exists
+    if [ ! -d "build" ]; then
+        mkdir build
+    fi
+    cd build
+    cmake ..
+    make -j`nproc`
+}
+
+function configureDrishya() {
+    cd $rootDir
+    if [ ! -d "build" ]; then
+        mkdir build
+    fi
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=OFF ..
+}
+
+function cleanconfigureDrishya() {
+    cd $rootDir
+    rm -r build
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=OFF ..
+}
+
+#---------------------------
+# main
+# --------------------------
+if [ "$1" == "setup-all" ]; then
+    echo "Pulling dependencies"
+    pullDependencies
+    if [ $? -ne 0 ]; then
+        echo "Failed to pull dependencies"
+        exit 1
+    fi
+    echo "Installing required packages"
+    installPackage
+    if [ $? -ne 0 ]; then
+        echo "Failed to install required packages"
+        exit 1
+    fi
+    echo "Building dependencies"
+    buildNcnn
+    if [ $? -ne 0 ]; then
+        echo "Failed to build dependencies"
+        exit 1
+    fi
+    echo "Building drishya"
+    buildDrishya
+    if [ $? -ne 0 ]; then
+        echo "Failed to build drishya"
+        exit 1
+    fi
+    echo "Done"
+fi
+
+if [ "$1" == "build" ]; then
+    echo "Building drishya"
+    buildDrishya
+fi
+
+if [ "$1" == "clean" ]; then
+    echo "Cleaning build files"
+    cd $rootDir
+    rm -rf build
+    cd $ncnnDir
+    rm -rf build
+    echo "Done"
+fi
+
+if [ "$1" == "run" ]; then
+    echo "Running drishya"
+    cd $rootDir
+    if [ -f "build/aakha" ]; then
+        ./build/aakha
+    else
+        echo "Build drishya first"
+    fi
+fi
+
+if [ "$1" == "pull" ]; then
+    echo "Pulling dependencies"
+    pullDependencies
+fi
+
+if [ "$1" == "build-deps" ]; then
+    echo "Building dependencies"
+    buildNcnn
+fi
+
+if [ "$1" == "configure" ]; then
+    echo "Configuring drishya"
+    if [ -d "$rootDir/ncnn/build/install" ]; then
+        configureDrishya
+    else
+        echo "Build dependencies first"
+    fi
+fi
+
+if [ "$1" == "cleanconfigure" ]; then
+    echo "Cleaning and configuring drishya"
+    cleanconfigureDrishya
+fi
+
+# if any other args provided show help menu
+if [ "$1" != "setup-all" ] && [ "$1" != "build" ] && [ "$1" != "clean" ] && [ "$1" != "run" ] && [ "$1" != "pull" ] && [ "$1" != "build-deps" ] && [ "$1" != "configure" ] && [ "$1" != "cleanconfigure" ]; then
+    echo "Invalid option"
+    echo "Available options:"
+    echo ""
+    echo ""
+    echo "Usage: ./setup.sh [args]"
+    echo "args:"
+    echo "  pull-deps: pull dependencies"
+    echo "  build-deps: build dependencies"
+    echo "  setup-all: install required packages and build drishya"
+    echo "  build: build drishya"
+    echo "  configure: configure drishya"
+    echo "  cleanconfigure: clean and configure drishya"
+    echo "  clean: clean build files"
+    echo "  run: run drishya"
+fi

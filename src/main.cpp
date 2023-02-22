@@ -236,7 +236,7 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
             }
         }
         if(keyPress == 'o'){
-		std::cout<<"Switching heater off"<<std::endl;
+		std::cout<<"Switching heater on"<<std::endl;
 		speak("Switching heater off");
 		std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/toggle.py");
 	}
