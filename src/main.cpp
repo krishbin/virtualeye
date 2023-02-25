@@ -257,7 +257,7 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
                 if (keyPress2 == 'o')
                     std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocr.py");
                 if (keyPress2 == 'n')
-                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocrhi.py"
+                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocrhi.py");
             }
         }
     }
