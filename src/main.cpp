@@ -247,7 +247,7 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
         }
 
         if(keyPress == 'p'){
-            speak("Using vision enhancements");
+            speak("Please wait");
             while(true){
                 char keyPress2 = cv::waitKey(500);
                 if (keyPress2 == 'd') break;
@@ -256,6 +256,8 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
                     std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getvision.py");
                 if (keyPress2 == 'o')
                     std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocr.py");
+                if (keyPress2 == 'n')
+                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocrhi.py"
             }
         }
     }

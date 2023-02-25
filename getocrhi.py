@@ -13,7 +13,7 @@ if not os.path.isfile(filepath):
 
 azdrisyafunction = {
     'endpoint' : "https://ocrttsdrishya.azurewebsites.net/api/ocr?code=rg3LAQvvajAsl8tuXVOBrzGzmCtzM0mG5g4qMkT_av76AzFuwLwIqw==",
-    'language': 'en'
+    'language': 'hi'
     }
 
 img = Image.open(filepath)
