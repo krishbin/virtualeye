@@ -33,7 +33,7 @@ static const char* class_names[] = {
     "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
     "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-    "potted plant", "bed", "table", "table", "heater", "heater", "mouse", "remote", "keyboard", "cell phone",
+    "potted plant", "bed", "table", "table", "laptop", "tv", "mouse", "remote", "keyboard", "cell phone",
     "microwave", "oven", "toaster", "sink", "table", "book", "clock", "vase", "scissors", "teddy bear",
     "hair drier", "toothbrush"
 };
@@ -221,7 +221,9 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
     }
     while (true){
         char keyPress = cv::waitKey(500);
+        // double press to exit
         if(keyPress == 'd') break;
+
         if(keyPress == 'n'){
             if(!spokeInitialItem){
                 spokeInitialItem = true;
@@ -233,21 +235,27 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
                 speak(class_names[currentitem->label],true);
             } else {
                 speak("end");
+                currentitem = bboxes.begin();
+                spokeInitialItem = false;
             }
         }
+
         if(keyPress == 'o'){
-		std::cout<<"Switching heater on"<<std::endl;
-		speak("Switching heater off");
-		std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/toggle.py");
-	}
+            std::cout<<"Switching heater on"<<std::endl;
+            speak("Switching heater state");
+            std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/toggle.py");
+        }
 
         if(keyPress == 'p'){
-            if(currentitem != bboxes.begin()){
-                currentitem--;
-                std::cout<<currentitem->label<<std::endl;
-                speak(class_names[currentitem->label],true);
-            } else {
-                speak("start");
+            speak("Using vision enhancements");
+            while(true){
+                char keyPress2 = cv::waitKey(500);
+                if (keyPress2 == 'd') break;
+                if (keyPress2 == 'p')
+                    std::cout<<"Using vision enhancements"<<std::endl;
+                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getvision.py");
+                if (keyPress2 == 'o')
+                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocr.py");
             }
         }
     }
@@ -308,7 +316,9 @@ std::cout << "Firing Up the view" << std::endl;
         char keyPress = cv::waitKey(1);
         if(keyPress == 27) break;
         else if(keyPress == 'd'){
-           traverse_objects(frame,results, effect_roi); 
+            std::system("mkdir -p .cached");
+            cv::imwrite(".cached/img.jpg",frame);
+            traverse_objects(frame,results, effect_roi); 
         }
     }
 
