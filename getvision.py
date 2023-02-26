@@ -26,7 +26,7 @@ with open( filepath , "rb") as image_file:
             azdrisyafunction['endpoint'],
             data = image_file,
             headers={"locale": azdrisyafunction["language"]},
-            timeout=10
+            timeout=20
             )
 
 if (resp.status_code == 200) and (resp.content != None):

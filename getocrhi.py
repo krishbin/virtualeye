@@ -18,8 +18,8 @@ azdrisyafunction = {
 
 img = Image.open(filepath)
 print(img.width,img.height)
-if img.width > 200:
-    img = img.resize((200, int(img.height * 200 / img.width)), Image.LANCZOS)
+if img.width > 300:
+    img = img.resize((300, int(img.height * 300 / img.width)), Image.LANCZOS)
     img.save(filepath,optimize=True)
 
 
@@ -28,7 +28,7 @@ with open( filepath , "rb") as image_file:
             azdrisyafunction['endpoint'],
             data = image_file,
             headers={"locale": azdrisyafunction["language"]},
-            timeout=10
+            timeout=20
             )
 
 if (resp.status_code == 200) and (resp.content != None):

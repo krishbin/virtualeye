@@ -118,6 +118,7 @@ fi
 if [ "$1" == "run" ]; then
     echo "Running drishya"
     cd $rootDir
+    source $rootDir/venv/bin/activate
     if [ -f "build/aakha" ]; then
         ./build/aakha
     else

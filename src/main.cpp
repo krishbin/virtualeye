@@ -33,7 +33,7 @@ static const char* class_names[] = {
     "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
     "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-    "potted plant", "bed", "table", "table", "laptop", "tv", "mouse", "remote", "keyboard", "cell phone",
+    "potted plant", "bed", "table", "table", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
     "microwave", "oven", "toaster", "sink", "table", "book", "clock", "vase", "scissors", "teddy bear",
     "hair drier", "toothbrush"
 };
@@ -213,7 +213,7 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
 	std::cout<<"Pause"<<std::endl;
 	speak("Pause");
     bool spokeInitialItem = false;
-    if(bboxes.size() == 0) return 0;
+    //if(bboxes.size() == 0) return 0;
     auto currentitem = bboxes.begin();
     for(auto it=bboxes.begin();it<bboxes.end(); it++){
         std::cout<<it->label<<" ";
@@ -243,7 +243,8 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
         if(keyPress == 'o'){
             std::cout<<"Switching heater on"<<std::endl;
             speak("Switching heater state");
-            std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/toggle.py");
+            std::system("python3 --version");
+            std::system("python3 /home/pi/virtualeye/toggle.py");
         }
 
         if(keyPress == 'p'){
@@ -251,13 +252,18 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
             while(true){
                 char keyPress2 = cv::waitKey(500);
                 if (keyPress2 == 'd') break;
-                if (keyPress2 == 'p')
+                if (keyPress2 == 'p'){
                     std::cout<<"Using vision enhancements"<<std::endl;
-                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getvision.py");
-                if (keyPress2 == 'o')
-                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocr.py");
-                if (keyPress2 == 'n')
-                    std::system("/usr/local/bin/python3.8 /home/pi/virtualeye/getocrhi.py");
+                    std::system("python3 /home/pi/virtualeye/getvision.py");
+		}
+                if (keyPress2 == 'o'){
+                    std::cout<<"Using ocr enhancements"<<std::endl;
+                    std::system("python3 /home/pi/virtualeye/getocr.py");
+		}
+                if (keyPress2 == 'n'){
+                    std::cout<<"Using ocrhi enhancements"<<std::endl;
+                    std::system("python3 /home/pi/virtualeye/getocrhi.py");
+		}
             }
         }
     }
