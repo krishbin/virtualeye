@@ -244,7 +244,7 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
             std::cout<<"Switching heater on"<<std::endl;
             speak("Switching heater state");
             std::system("python3 --version");
-            std::system("python3 /home/pi/virtualeye/toggle.py");
+            std::system("python3 /home/mbm/virtualeye/toggle.py");
         }
 
         if(keyPress == 'p'){
@@ -254,15 +254,15 @@ int traverse_objects(const cv::Mat& image, const std::vector<BoxInfo>& bboxes, o
                 if (keyPress2 == 'd') break;
                 if (keyPress2 == 'p'){
                     std::cout<<"Using vision enhancements"<<std::endl;
-                    std::system("python3 /home/pi/virtualeye/getvision.py");
+                    std::system("python3 /home/mbm/virtualeye/getvision.py");
 		}
                 if (keyPress2 == 'o'){
                     std::cout<<"Using ocr enhancements"<<std::endl;
-                    std::system("python3 /home/pi/virtualeye/getocr.py");
+                    std::system("python3 /home/mbm/virtualeye/getocr.py");
 		}
                 if (keyPress2 == 'n'){
                     std::cout<<"Using ocrhi enhancements"<<std::endl;
-                    std::system("python3 /home/pi/virtualeye/getocrhi.py");
+                    std::system("python3 /home/mbm/virtualeye/getocrhi.py");
 		}
             }
         }
